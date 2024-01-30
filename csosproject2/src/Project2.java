@@ -8,444 +8,240 @@
 
  */
 // Do the imports
+
 import java.util.Queue;
-import java.util.concurrent.Semaphore;
 import java.util.LinkedList;
-//--------------------------------------------------------------------------------------------------------------------//
-//Create the Project2 class
-public class Project2 implements Runnable {
+import java.util.concurrent.Semaphore;
 
-//--------------------------------------------------------------------------------------------------------------------//
-    //initilaize the variables, semaphores, threads , and classes
-     public  int num = 0;
-     public int val = 0;
-    public  int waitingnum= 0;
-    public  int[][] waitingarray = new int[20][1];
-    public  int[] callednums = new int[20];
-    public   int[] agentline = new int[4];
-    public   int agentlinenum = 0;
-     public final int customers = 20;
-     public  final int agents = 2;
-     public  final int thedesk = 1;
-    public Thread[] thecustomers= new Thread[customers];
-    public Semaphore agentsAvailable = new Semaphore(1);
-   public Semaphore agentlineSem = new Semaphore(2);
-   public Semaphore theCustomers = new Semaphore(2,true);
-    public  Semaphore theInsDesk = new Semaphore(1,true);
-    public  Semaphore theAnnouncer = new Semaphore(1,true);
-    public  Semaphore waitingRoom = new Semaphore(4,true);
-    public  Customer[] thr = new Customer[customers] ;
-    public  AgentLine agentLine = new AgentLine(1) ;
-    public Agent[] theagents = new Agent[2];
-    public InfoDesk[] thecurrdesk = new InfoDesk[1];
-    public WaitingRoom[] roomwait = new WaitingRoom[1];
-    public Thread[] deskThread = new Thread[1];
-    public  Announcer[] theannouncer = new Announcer[thedesk];
-    public Thread[] announcerThread = new Thread[thedesk];
-    public Queue<Thread> threadArrLine = new LinkedList<Thread>();
-    public Thread[] waiter = new Thread[1];
-    public int theq =0;
-    public  Thread[] agent = new Thread[agents];
+public class Project2 {
 
-    //--------------------------------------------------------------------------------------------------------------------//
-     //project 2
+    private static final int CUSTOMERS = 20;
+    private static final int AGENTS = 2;
+    private static final int INFO_DESKS = 1;
+    private static final int WAITING_ROOM_CAPACITY = 4;
+
+    private final Semaphore agentsAvailable = new Semaphore(1);
+    private final Semaphore agentLineSemaphore = new Semaphore(2);
+    private final Semaphore theCustomers = new Semaphore(2, true);
+    private final Semaphore theInsDesk = new Semaphore(1, true);
+    private final Semaphore theAnnouncer = new Semaphore(1, true);
+    private final Semaphore waitingRoom = new Semaphore(WAITING_ROOM_CAPACITY, true);
+
+    private final Customer[] customers = new Customer[CUSTOMERS];
+    private final Agent[] agents = new Agent[AGENTS];
+    private final InfoDesk[] infoDesks = new InfoDesk[INFO_DESKS];
+    private final Announcer[] announcers = new Announcer[INFO_DESKS];
+    private final WaitingRoom[] waitingRooms = new WaitingRoom[INFO_DESKS];
+
+    private int waitingnum = 0;
+    private int[][] waitingarray = new int[CUSTOMERS][1];
+    private int[] callednums = new int[CUSTOMERS];
+    private int[] agentline = new int[AGENTS];
+    private int agentlinenum = 0;
+
     public Project2() {
-
-
-
+        initialize();
     }
 
-    //--------------------------------------------------------------------------------------------------------------------//
-    //run for project2
-    public void run(){
-
-
-        //create the customers and threads
-        for(int  i = 0; i < 20 ; ++i ) {
-
-
-            thr[i] = new Customer(i);
-            thecustomers[i] = new Thread( thr[i] );
-
-
+    private void initialize() {
+        for (int i = 0; i < CUSTOMERS; ++i) {
+            customers[i] = new Customer(i);
         }
 
-        //create the information desk and thread
-        for(int i=0; i<1;++i){
-
-            thecurrdesk[i] = new InfoDesk(i);
-            deskThread[i] = new Thread(thecurrdesk[i]);
-            System.out.println("Information desk created");
-
-        }
-        //create the announcer and thread
-        for(int i=0; i<1;++i){
-
-            theannouncer[i] = new Announcer(i);
-            announcerThread[i] = new Thread(theannouncer[i]);
-            System.out.println("Announcer created");
-
-        }
-        //create the agents and threads
-        for(int i=0; i<2;++i){
-            theagents[i] = new Agent(i);
-            agent[i] = new Thread(theagents[i]);
-            System.out.println("Agent " + (i+1) + " created");
-
+        for (int i = 0; i < INFO_DESKS; ++i) {
+            infoDesks[i] = new InfoDesk(i);
+            announcers[i] = new Announcer(i);
+            waitingRooms[i] = new WaitingRoom(i);
         }
 
-        //this will aquire and then run the thread
-        for(int i=0; i< 20; ++i){
-
-            try {
-                theCustomers.acquire();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            thecustomers[i].start();
-
+        for (int i = 0; i < AGENTS; ++i) {
+            agents[i] = new Agent(i);
         }
+    }
 
-        //joins desk
-        for(int i = 1;i<1;++i){
+    public void run() {
+        createAndRunThreads(customers);
+        createAndRunThreads(infoDesks);
+        createAndRunThreads(announcers);
+        createAndRunThreads(agents);
 
+        waitForThreadsToFinish(customers);
+        waitForThreadsToFinish(infoDesks);
+        waitForThreadsToFinish(announcers);
+        waitForThreadsToFinish(agents);
 
-            try {
-                deskThread[i].join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
-        //joins announcer
-        for(int i = 1;i<1;++i){
-
-
-            try {
-                announcerThread[i].join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
-        //joins the agents
-        for(int i = 1;i<2;++i){
-
-
-            try {
-                agent[i].join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
-        //customers join them and output it
-        for( int i = 0; i < 20; ++i )
-        {
-            try
-            {
-                thecustomers[i].join();
-                System.out.println("Customer " + (i+1) + " was joined");
-                agentlineSem.release();
-            }
-            catch (InterruptedException e)
-            {
-            }
-        }
         System.out.println("Done");
-
     }
 
-    //--------------------------------------------------------------------------------------------------------------------//
-    //main method create project 2 and runs it
-    public static void main(String []args) throws InterruptedException {
+    private void createAndRunThreads(Runnable[] runnables) {
+        for (Runnable runnable : runnables) {
+            new Thread(runnable).start();
+        }
+    }
 
+    private void waitForThreadsToFinish(Thread[] threads) {
+        for (Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
+    public static void main(String[] args) {
         Project2 thecurrent = new Project2();
         thecurrent.run();
-
     }
 
-    //--------------------------------------------------------------------------------------------------------------------//
-    //customer class
-    public  class Customer implements Runnable{
-        //intilaize variables
-       public int num;
+    public class Customer implements Runnable {
+        private final int num;
 
-        //--------------------------------------------------------------------------------------------------------------------//
-       //customer
-     Customer(int num){
-         this.num = num;
-
-     }
-
-        //--------------------------------------------------------------------------------------------------------------------//
-     //run
-     public void run()
-     {
-         //trys
-          try {
-              //aquite semaphore
-             theInsDesk.acquire();
-             //prints and sets
-             System.out.println("Customer " + (num+1) + " created, enters DMV");
-
-             //sets
-              thecurrdesk[0].bigset(num);
-             deskThread[0] = new Thread(thecurrdesk[0]);
-             //runs
-             deskThread[0].run();
-
-             //releases semaphore , sets
-              theInsDesk.release();
-              theannouncer[0].bigset(this.num);
-              announcerThread[0] = new Thread(theannouncer[0]);
-            //runs waiting room
-              roomwait[0] = new WaitingRoom(num);
-              waiter[0] = new Thread(roomwait[0]);
-              waitingRoom.acquire();
-              waiter[0].run();
-              //release
-              waitingRoom.release();
-
-
-
-
-
-
-         } catch (InterruptedException e) {
-             e.printStackTrace();
-         }
-
-          //trys to aquire announcer
-         try {
-
-             //runs the thread and then runs the agent line
-                  theAnnouncer.acquire();
-                  announcerThread[0].run();
-                 agentLine.bigset(this.num);
-                 agentLine.run();
-
-
-         } catch (InterruptedException e) {
-             e.printStackTrace();
-         }
-
-         //releases semaphore
-            theAnnouncer.release();
-     }
-        //--------------------------------------------------------------------------------------------------------------------//
-    }
-
-    //--------------------------------------------------------------------------------------------------------------------//
-    //this is the agent class
-    public class Agent implements Runnable{
-
-        //initalize variables
-        int num;
-        int thenum;
-
-        //--------------------------------------------------------------------------------------------------------------------//
-        //agent
-        Agent(int num){
-
+        Customer(int num) {
             this.num = num;
         }
-        //--------------------------------------------------------------------------------------------------------------------//
-        //agent setter for customer
-        public void bigset(int i){
 
-            this.thenum = i;
+        public void run() {
+            try {
+                theInsDesk.acquire();
+                System.out.println("Customer " + (num + 1) + " created, enters DMV");
+                infoDesks[0].processCustomer(this.num);
+                waitingRooms[0].addToLine(announcers[0]);
+                waitingRoom.acquire();
+                waitingRoom.release();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } finally {
+                theInsDesk.release();
+                theAnnouncer.acquire();
+                announcers[0].announceNumber(this.num);
+                theCustomers.release();
+                theAnnouncer.release();
+            }
+        }
+    }
+
+    public class Agent implements Runnable {
+        private final int num;
+        private int customerNum;
+
+        Agent(int num) {
+            this.num = num;
         }
 
-        //--------------------------------------------------------------------------------------------------------------------//
-        //run
-        public void run(){
+        public void run() {
             serve();
-
         }
-        //--------------------------------------------------------------------------------------------------------------------//
-        //connects to the serve
-        public void serve(){
 
-            System.out.println("Customer " +   (this.thenum+1) + " is being served by agent " + (val+1));
+        public void bigset(int customerNum) {
+            this.customerNum = customerNum;
+        }
+
+        public void serve() {
+            System.out.println("Customer " + (customerNum + 1) + " is being served by agent " + (num + 1));
             eyeExam();
         }
 
-        //--------------------------------------------------------------------------------------------------------------------//
-        //then connects to eye exam
         public void eyeExam() {
-            System.out.println("Agent " + (val+1) + " asks customer " +   (this.thenum+1) + " to take photo and eye exam");
+            System.out.println("Agent " + (num + 1) + " asks customer " + (customerNum + 1) + " to take photo and eye exam");
             finishExam();
-
         }
-        //--------------------------------------------------------------------------------------------------------------------//
-        //finish the exam
-        public void finishExam(){
 
-            System.out.println("Customer " +   (this.thenum+1) + " completes photo and eye exam for agent " + (val+1));
+        public void finishExam() {
+            System.out.println("Customer " + (customerNum + 1) + " completes photo and eye exam for agent " + (num + 1));
             giveId();
-
         }
-        //--------------------------------------------------------------------------------------------------------------------//
-        //give the id
-        public void giveId(){
 
-            System.out.println("Customer " +   (this.thenum+1) + " gets license and departs");
-
+        public void giveId() {
+            System.out.println("Customer " + (customerNum + 1) + " gets license and departs");
         }
-        //--------------------------------------------------------------------------------------------------------------------//
-    }
-    //--------------------------------------------------------------------------------------------------------------------//
-    //the agent line
-    public  class AgentLine implements Runnable{
-
-        int num;
-        int am;
-
-        //--------------------------------------------------------------------------------------------------------------------//
-        //agent line
-        AgentLine(int num){
-
-            this.num = num;
-
-        }
-        //--------------------------------------------------------------------------------------------------------------------//
-        //set agent line cus
-        public void bigset(int i){
-
-            this.am = i;
-
-        }
-        //--------------------------------------------------------------------------------------------------------------------//
-        //run function
-        public void run()
-        {
-            //semaphore , set line then move to line
-                agentlineSem.tryAcquire(1);
-                agentline[agentlinenum] = this.am;
-                System.out.println("Customer " + (this.am+1) + " moves to agent line");
-                //run agent
-                theagents[0].bigset(am);
-                agent[val] = new Thread(theagents[0]);
-                agent[val].run();
-                //agent number
-               if(val==0){
-
-                   val=1;
-               }else{
-                   val = 0;
-               }
-               agentsAvailable.release();
-        }
-        //--------------------------------------------------------------------------------------------------------------------//
     }
 
-    //--------------------------------------------------------------------------------------------------------------------//
-    //announcer
-    public class Announcer implements Runnable {
+    public class AgentLine implements Runnable {
+        private int num;
+        private int am;
 
-        int num;
-        int current;
-
-        //--------------------------------------------------------------------------------------------------------------------//
-        //announcer
-        Announcer(int num) {
-
+        AgentLine(int num) {
             this.num = num;
         }
 
-        //--------------------------------------------------------------------------------------------------------------------//
-        //set customer from announcer
         public void bigset(int i) {
-
-            this.current = i;
-
-
+            this.am = i;
         }
 
-        //--------------------------------------------------------------------------------------------------------------------//
-        //set the called num
+        public void run() {
+            try {
+                agentLineSemaphore.tryAcquire(1);
+                agentline[agentlinenum] = this.am;
+                System.out.println("Customer " + (this.am + 1) + " moves to agent line");
+                agents[0].bigset(am);
+                agentlinenum = (agentlinenum + 1) % AGENTS;
+                agentsAvailable.release();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public class Announcer implements Runnable {
+        private int num;
+        private int current;
+
+        Announcer(int num) {
+            this.num = num;
+        }
+
+        public void bigset(int i) {
+            this.current = i;
+        }
+
         void set() {
             callednums[this.current] = waitingarray[this.current][0];
         }
 
-        //run
         public void run() {
-            //set
             set();
-            //call and release
-            System.out.println("Announcer calls number " + ((callednums[this.current]) + 1));
+            System.out.println("Announcer calls number " + (callednums[this.current] + 1));
             theCustomers.release();
         }
-        //--------------------------------------------------------------------------------------------------------------------//
     }
 
-    //--------------------------------------------------------------------------------------------------------------------//
-    //waiting room
     public class WaitingRoom implements Runnable {
+        private int num;
 
-        int num;
-
-        //--------------------------------------------------------------------------------------------------------------------//
-        //waiting room
         WaitingRoom(int i) {
-
-            this.num=i;
-
+            this.num = i;
         }
 
-        //--------------------------------------------------------------------------------------------------------------------//
-      //add too line and increment run
+        public void addToLine(Announcer announcer) {
+            threadArrLine.add(new Thread(announcer));
+        }
+
         public void run() {
-
-                threadArrLine.add(announcerThread[0]);
-                theq++;
-
+            theq++;
         }
-
-        //--------------------------------------------------------------------------------------------------------------------//
     }
 
-    //--------------------------------------------------------------------------------------------------------------------//
-    //info desk
-    public class InfoDesk implements Runnable{
+    public class InfoDesk implements Runnable {
+        private int num;
+        private int stored;
 
-        int num;
-        int stored;
-
-        //--------------------------------------------------------------------------------------------------------------------//
-        //info desk
-        InfoDesk(int num){
-
+        InfoDesk(int num) {
             this.num = num;
-
         }
 
-        //--------------------------------------------------------------------------------------------------------------------//
-        //desk customer from info desk
-        public void bigset(int i){
+        public void processCustomer(int customerNum) {
+            waitingarray[customerNum][0] = waitingnum;
+            System.out.println("Customer " + (customerNum + 1) + " gets number " + (waitingnum + 1) + ", enters waiting room");
+            waitingnum++;
+        }
 
+        public void bigset(int i) {
             this.stored = i;
         }
 
-        //--------------------------------------------------------------------------------------------------------------------//
-        //run
-        public void run()
-        {
-
-            //waiting people array
-            waitingarray[stored][0] = waitingnum;
-            System.out.println("Customer " + (stored+1) + " gets number " + ((waitingarray[stored][0])+1) + ", enters waiting room");
-            waitingnum++;
-
-
+        public void run() {
+            // InfoDesk logic...
         }
-        //--------------------------------------------------------------------------------------------------------------------//
     }
-    //--------------------------------------------------------------------------------------------------------------------//
 }
-
-//--------------------------------------------------------------------------------------------------------------------//
-
-
